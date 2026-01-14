@@ -1,8 +1,8 @@
-// src/services/api.js - CORRECT VERSION
+// src/services/api.js 
 import axios from 'axios'
 
-// ✅ CORRECT URL - Port 3002
-const API_BASE_URL = 'http://localhost:3002/api'
+
+const API_BASE_URL = 'https://juno-website-backend.onrender.com'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
