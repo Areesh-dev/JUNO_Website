@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react'
 import Lightbox from 'yet-another-react-lightbox'
 import 'yet-another-react-lightbox/styles.css'
@@ -24,32 +25,21 @@ const Events = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   // ✅ FIXED: CORRECT FILTER AND SEARCH LOGIC
-  const filteredEvents = events
-    .filter(event => {
-      // First check if event object exists
-      if (!event) return false
+  const filteredEvents = events.filter(event => {
+  if (!event) return false;
 
-      // Check is_past correctly
-      const isPastEvent = event.is_past === 1 || event.is_past === true
+  // Flexible check: agar field missing hai tou use 'upcoming' tasawwur karein
+  const isPastEvent = event.is_past === true || event.is_past === 1;
 
-      // Apply filter
-      if (filter === 'upcoming' && isPastEvent) return false
-      if (filter === 'past' && !isPastEvent) return false
-
-      return true
-    })
-    .filter(event => {
-      // Then apply search
-      if (!searchTerm.trim()) return true
-
-      const searchLower = searchTerm.toLowerCase().trim()
-      const title = (event.title || '').toLowerCase()
-      const description = (event.description || '').toLowerCase()
-
-      // Search in both title and description
-      return title.includes(searchLower) || description.includes(searchLower)
-    })
-
+  if (filter === 'upcoming') return !isPastEvent;
+  if (filter === 'past') return isPastEvent;
+  return true; // 'all' ke liye sab dikhao
+}).filter(event => {
+  // Search logic
+  const searchLower = searchTerm.toLowerCase().trim();
+  return (event.title || '').toLowerCase().includes(searchLower) || 
+         (event.description || '').toLowerCase().includes(searchLower);
+});
   // ✅ FIXED: Create unique slides
   const slides = filteredEvents.map((event, index) => ({
     src: event.image_url || `https://picsum.photos/seed/${event.id}_${index}/1200/800`,

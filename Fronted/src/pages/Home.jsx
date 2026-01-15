@@ -1,3 +1,4 @@
+
 // src/pages/Home.jsx - FULLY CORRECTED VERSION
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -24,8 +25,9 @@ const Home = () => {
 
   const navigate = useNavigate()
 
-  const upcomingEvent = events.find(event => event.is_past === false)
-  const pastEvents = events.filter(event => event.is_past).slice(0, 4);
+  const upcomingEvent = events.find(event => event.is_past === false) || events[0];
+  const pastEvents = events.filter(event => event.is_past === true).slice(0, 4);
+  const displayPastEvents = pastEvents.length > 0 ? pastEvents : events.slice(0, 4);
   const featuredEvent = events[0] || null
   const latestEvent = events[1] || null
 
