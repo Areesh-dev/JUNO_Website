@@ -10,7 +10,7 @@ import { serviceAccount } from './firebase-config.js';
 
 // Load environment variables FIRST
 dotenv.config();
-
+let db;
 try {
   if (!admin.apps.length) {
     admin.initializeApp({
