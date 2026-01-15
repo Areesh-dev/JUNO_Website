@@ -1,19 +1,29 @@
 // src/services/api.js 
 import axios from 'axios'
 
+const getBaseURL = () => {
+  // Check if we're in development
+  if (window.location.hostname === 'localhost' || 
+      window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:10000/api'
+  }
+  
+  // Production - use Render backend
+  return 'https://juno-website-backend.onrender.com/api'
+}
 
-const API_BASE_URL = 'https://juno-website-backend.onrender.com'
+const API_BASE_URL = getBaseURL()
+console.log('🔗 API Base URL:', API_BASE_URL)
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000  // 30 second timeout
 })
 
-console.log('🔗 API Base URL:', API_BASE_URL)
-
-// Test connection
+// ✅ Test connection
 api.get('/health')
   .then(response => {
     console.log('✅ Backend connected:', response.data)
@@ -26,10 +36,10 @@ api.get('/health')
 export const getEvents = async () => {
   try {
     const response = await api.get('/events')
-    console.log('✅ Events loaded:', response.data.length)
-    return response.data
+    console.log('✅ Events loaded:', response.data?.length || 0)
+    return response.data || []
   } catch (error) {
-    console.error('Error fetching events:', error)
+    console.error('❌ Error fetching events:', error.message)
     return []
   }
 }
@@ -39,7 +49,7 @@ export const getEventById = async (id) => {
     const response = await api.get(`/events/${id}`)
     return response.data
   } catch (error) {
-    console.error('Error fetching event:', error)
+    console.error('❌ Error fetching event:', error.message)
     return null
   }
 }
@@ -50,7 +60,7 @@ export const getEventTime = async () => {
     const res = await api.get('/next-event-time')
     return res.data
   } catch (error) {
-    console.error('Error fetching event time:', error)
+    console.error('❌ Error fetching event time:', error.message)
     return null
   }
 }
@@ -64,10 +74,7 @@ export const submitRegistration = async (data) => {
     console.log('✅ Registration successful:', response.data)
     return response.data
   } catch (error) {
-    console.error('❌ Registration error:', {
-      status: error.response?.status,
-      data: error.response?.data
-    })
+    console.error('❌ Registration error:', error.response?.data || error.message)
     throw error
   }
 }
@@ -78,7 +85,7 @@ export const getRegistrations = async () => {
     const response = await api.get('/admin/registrations')
     return response.data
   } catch (error) {
-    console.error('Error fetching registrations:', error)
+    console.error('❌ Error fetching registrations:', error.message)
     throw error
   }
 }
@@ -90,7 +97,7 @@ export const exportToExcel = async () => {
     })
     return response.data
   } catch (error) {
-    console.error('Excel export error:', error)
+    console.error('❌ Excel export error:', error.message)
     throw error
   }
 }

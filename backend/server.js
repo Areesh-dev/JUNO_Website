@@ -1,86 +1,128 @@
-// server.js - COMPLETE FIREBASE VERSION
+// server.js - COMPLETE WORKING FIREBASE VERSION
 import express, { json } from 'express';
 import cors from 'cors';
 import ExcelJS from 'exceljs';
+import admin from 'firebase-admin';
+import dotenv from 'dotenv';
 
-// ✅ Firebase Admin Setup (REPLACES MySQL)
-import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { readFileSync } from 'fs';
+// Load environment variables
+dotenv.config();
 
-// Load Firebase service account key
-const serviceAccount = JSON.parse(
-  readFileSync('./juno-backend-107fc-firebase-adminsdk-fbsvc-e925534d8d.json', 'utf8')
-);
+// ✅ CORRECT FIREBASE INITIALIZATION
+// Method 1: Use environment variables (Recommended for Render)
+let serviceAccount;
 
-// Initialize Firebase
-initializeApp({
-  credential: cert(serviceAccount)
-});
+if (process.env.FIREBASE_PROJECT_ID) {
+    // Use environment variables (Production - Render)
+    serviceAccount = {
+        type: "service_account",
+        project_id: process.env.FIREBASE_PROJECT_ID,
+        private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+        private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        client_email: process.env.FIREBASE_CLIENT_EMAIL,
+        client_id: process.env.FIREBASE_CLIENT_ID,
+        auth_uri: process.env.FIREBASE_AUTH_URI || "https://accounts.google.com/o/oauth2/auth",
+        token_uri: process.env.FIREBASE_TOKEN_URI || "https://oauth2.googleapis.com/token",
+        auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL || "https://www.googleapis.com/oauth2/v1/certs",
+        client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL
+    };
+    console.log('✅ Using Firebase from environment variables');
+} else {
+    console.error('❌ Firebase environment variables not set');
+    process.exit(1);
+}
 
-// Initialize Firestore Database
-const db = getFirestore();
+// Initialize Firebase (only once)
+if (!admin.apps.length) {
+    try {
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+            databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`
+        });
+        console.log('✅ Firebase initialized successfully');
+    } catch (error) {
+        console.error('❌ Firebase initialization failed:', error.message);
+        process.exit(1);
+    }
+}
+
+// Get Firestore instance
+const db = admin.firestore();
+const FieldValue = admin.firestore.FieldValue;
 
 const app = express();
-const PORT = process.env.PORT || 3002; // ✅ Important for deployment
+const PORT = process.env.PORT || 10000;
 
-// JUNO Color Scheme
-const JUNO_COLORS = {
-    primaryPurple: "520893",
-    accentYellow: "FEC732",
-    lightGray: "F2F2F2",
-    darkGray: "333333",
-    white: "FFFFFF"
-};
-
-// Middleware
+// ✅ CORS Configuration - Update with your frontend URL
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://localhost:5173', 'https://your-frontend-domain.com'],
+    origin: [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'https://juno-website-frontend.onrender.com',
+        'https://juno-website-fronted.onrender.com' // Fixed typo if needed
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 }));
+
 app.use(json());
 
-// =====================
-// REQUEST LOGGER (For Debugging)
-// =====================
-// app.use((req, res, next) => {
-//     console.log('\n=== NEW REQUEST ===');
-//     console.log('Time:', new Date().toISOString());
-//     console.log('Method:', req.method);
-//     console.log('URL:', req.url);
-//     console.log('Path:', req.path);
-//     console.log('Headers:', req.headers['content-type']);
-//     console.log('Body:', req.body);
-//     console.log('=== END REQUEST ===\n');
-//     next();
-// });
+// ✅ Request Logger Middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+    if (req.method === 'POST' || req.method === 'PUT') {
+        console.log('Body:', JSON.stringify(req.body, null, 2));
+    }
+    next();
+});
 
 // =====================
-// GLOBAL EVENT TIME FOR COUNTDOWN (Fallback)
+// GLOBAL CONSTANTS
 // =====================
-const GLOBAL_NEXT_EVENT_TIME = '2026-01-15T18:00:00Z';
+const GLOBAL_NEXT_EVENT_TIME = '2026-01-20T18:00:00Z';
 
-// ✅ Firebase doesn't need table creation - Collections are created automatically
+// =====================
+// STATIC DATA (FALLBACK)
+// =====================
+const STATIC_EVENTS = [
+    {
+        id: 1,
+        title: 'Moon Lamp Workshop',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-1_ctoxli.jpg',
+        description: 'Create your own moon texture lamp',
+        event_date: '2026-01-20T18:00:00Z',
+        is_past: false
+    },
+    {
+        id: 2,
+        title: 'Chaye Crypto Meetup',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-2_bfm5ik.jpg',
+        description: 'Discuss crypto over chai',
+        event_date: '2026-02-15T16:00:00Z',
+        is_past: false
+    }
+];
 
-// ✅ 2. HEALTH CHECK
+// =====================
+// HEALTH CHECK
+// =====================
 app.get('/api/health', async (req, res) => {
     try {
-        // Test Firestore connection
-        await db.collection('health').doc('test').set({ test: true });
-        await db.collection('health').doc('test').delete();
-        
+        // Simple test without Firestore
         res.json({
             status: 'OK',
-            database: 'Firebase Firestore Connected',
+            message: 'JUNO Backend is running',
+            timestamp: new Date().toISOString(),
             port: PORT,
-            collections: ['events', 'registrations']
+            environment: process.env.NODE_ENV || 'development',
+            firebase: 'Configured'
         });
     } catch (error) {
         res.status(500).json({
             status: 'ERROR',
-            error: error.message
+            message: error.message,
+            timestamp: new Date().toISOString()
         });
     }
 });
@@ -90,10 +132,9 @@ app.get('/api/health', async (req, res) => {
 // =====================
 app.get('/', (req, res) => {
     res.json({
-        message: 'JUNO Event Registration API (Firebase Edition)',
-        version: '3.0.0 (Firebase)',
-        port: PORT,
-        database: 'Firebase Firestore',
+        message: 'JUNO Event Registration API',
+        version: '1.0.0',
+        status: 'Active',
         endpoints: {
             health: 'GET /api/health',
             events: 'GET /api/events',
@@ -101,232 +142,88 @@ app.get('/', (req, res) => {
             register: 'POST /api/register',
             admin: {
                 registrations: 'GET /api/admin/registrations',
-                export: 'GET /api/admin/export-excel',
-                clear: 'DELETE /api/admin/clear-registrations'
+                export: 'GET /api/admin/export-excel'
             }
         }
     });
 });
 
 // =====================
-// STATIC EVENTS FALLBACK
-// =====================
-const STATIC_EVENTS = [
-    {
-        id: 1,
-        title: 'Moon Lamp Workshop',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-1_ctoxli.jpg',
-        is_past: true
-    },
-    {
-        id: 2,
-        title: 'Chaye Crypto Meetup',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-2_bfm5ik.jpg',
-        is_past: true
-    },
-    {
-        id: 3,
-        title: 'Cushion Making Workshop',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875241/event-3_mzr6wq.jpg',
-        is_past: true
-    },
-    {
-        id: 4,
-        title: 'Community Meetup',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875240/event-4_xhsd71.jpg',
-        is_past: true
-    },
-    {
-        id: 5,
-        title: 'Ceramic Tary Painting Workshop',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204023/1_20_hyqmok.jpg',
-        is_past: true
-    },
-    {
-        id: 6,
-        title: 'Watch party snacks and drinks',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204023/1_31_wddr9w.jpg',
-        is_past: true
-    },
-    {
-        id: 7,
-        title: 'Play on canvas and clay',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204023/1_19_e5ocx0.jpg',
-        is_past: true
-    },
-    {
-        id: 8,
-        title: 'Clay Workshop',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_30_hlskpm.jpg',
-        is_past: true
-    },
-    {
-        id: 9,
-        title: 'Block Paint Magic',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_22_ntjrgg.jpg',
-        is_past: true
-    },
-    {
-        id: 10,
-        title: 'Block Painting',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204021/1_21_kkfawa.jpg',
-        is_past: true
-    },
-    {
-        id: 11,
-        title: 'CLay & Create',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_16_mq1eft.jpg',
-        is_past: true
-    },
-    {
-        id: 12,
-        title: 'Block Paint Workshop',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_13_z9ra9x.jpg',
-        is_past: true
-    },
-    {
-        id: 13,
-        title: 'Sip & Paint',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_15_mdpe6i.jpg',
-        is_past: true
-    },
-    {
-        id: 14,
-        title: 'Neon Painting Party',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_14_a7srbn.jpg',
-        is_past: true
-    },
-    {
-        id: 15,
-        title: 'Blind Date With A Book',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204021/1_11_pnsgew.jpg',
-        is_past: true
-    },
-    {
-        id: 16,
-        title: 'Latte Candle Workshop',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204021/1_12_hsswh9.jpg',
-        is_past: true
-    }
-];
-
-// =====================
-// EVENTS API (Firebase Version)
+// EVENTS API
 // =====================
 app.get('/api/events', async (req, res) => {
     try {
-        // Get events from Firestore
+        console.log('📡 Fetching events from Firestore...');
         const eventsRef = db.collection('events');
         const snapshot = await eventsRef.orderBy('event_date', 'desc').get();
         
-        if (!snapshot.empty) {
-            const events = [];
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const eventDate = data.event_date.toDate ? data.event_date.toDate() : new Date(data.event_date);
-                events.push({
-                    id: doc.id,
-                    ...data,
-                    event_date: data.event_date,
-                    is_past: eventDate < new Date()
-                });
-            });
-            
-            console.log(`✅ Returning ${events.length} events from Firestore`);
-            return res.json(events);
-        } else {
-            console.log('⚠️ Firestore empty, returning static events');
+        if (snapshot.empty) {
+            console.log('📭 No events in Firestore, returning static events');
             return res.json(STATIC_EVENTS);
         }
+        
+        const events = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const eventDate = data.event_date?.toDate ? data.event_date.toDate() : new Date(data.event_date);
+            events.push({
+                id: doc.id,
+                title: data.title || 'Untitled Event',
+                description: data.description || '',
+                image_url: data.image_url || '',
+                event_date: data.event_date,
+                location: data.location || '',
+                is_past: eventDate < new Date()
+            });
+        });
+        
+        console.log(`✅ Returning ${events.length} events from Firestore`);
+        return res.json(events);
     } catch (error) {
-        console.error('❌ Firestore error, returning static events:', error.message);
+        console.error('❌ Firestore error:', error.message);
+        console.log('🔄 Returning static events as fallback');
         return res.json(STATIC_EVENTS);
     }
 });
 
-app.get('/api/events/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const docRef = db.collection('events').doc(id);
-        const doc = await docRef.get();
-        
-        if (doc.exists) {
-            const data = doc.data();
-            const eventDate = data.event_date.toDate ? data.event_date.toDate() : new Date(data.event_date);
-            res.json({
-                id: doc.id,
-                ...data,
-                is_past: eventDate < new Date()
-            });
-        } else {
-            // Check static events if not found in Firestore
-            const staticEvent = STATIC_EVENTS.find(event => event.id == id);
-            if (staticEvent) {
-                return res.json(staticEvent);
-            }
-            return res.status(404).json({ error: 'Event not found' });
-        }
-    } catch (error) {
-        console.error('Event detail error:', error);
-        res.status(500).json({ error: 'Failed to fetch event' });
-    }
-});
-
 // =====================
-// COUNTDOWN EVENT TIME (Firebase Version)
+// EVENT TIME FOR COUNTDOWN
 // =====================
-let cachedEventTime = null;
-let cacheTime = 0;
-const CACHE_DURATION = 60000;
-
 app.get('/api/next-event-time', async (req, res) => {
-    const now = Date.now();
-    if (cachedEventTime && (now - cacheTime) < CACHE_DURATION) {
-        console.log('✅ Returning cached event time');
-        return res.json(cachedEventTime);
-    }
-
     try {
+        // Try to get next event from Firestore
         const eventsRef = db.collection('events');
         const snapshot = await eventsRef
-            .where('event_date', '>', new Date())
+            .where('event_date', '>=', new Date())
             .orderBy('event_date', 'asc')
             .limit(1)
             .get();
         
-        let response;
         if (!snapshot.empty) {
+            let nextEvent = null;
             snapshot.forEach(doc => {
-                const data = doc.data();
-                response = {
-                    nextEventTime: data.event_date,
-                    eventFound: true,
-                    source: 'firebase'
-                };
+                nextEvent = doc.data();
             });
-        } else {
-            response = {
-                eventStartTime: GLOBAL_NEXT_EVENT_TIME,
-                serverTime: new Date().toISOString(),
+            
+            return res.json({
+                nextEventTime: nextEvent.event_date,
+                eventTitle: nextEvent.title,
                 eventFound: true,
-                source: 'static'
-            };
+                source: 'firebase'
+            });
         }
-
-        cachedEventTime = response;
-        cacheTime = now;
-
-        console.log('✅ Returning fresh event time (cached)');
-        res.json(response);
+        
+        // Fallback to static event time
+        return res.json({
+            nextEventTime: GLOBAL_NEXT_EVENT_TIME,
+            eventTitle: 'Upcoming JUNO Event',
+            eventFound: true,
+            source: 'static'
+        });
     } catch (error) {
-        console.error('Event time error:', error);
-        if (cachedEventTime) {
-            console.log('⚠️ Firestore error, returning cached data');
-            return res.json(cachedEventTime);
-        }
-        res.json({
-            eventStartTime: GLOBAL_NEXT_EVENT_TIME,
-            serverTime: new Date().toISOString(),
+        console.error('❌ Event time error:', error.message);
+        return res.json({
+            nextEventTime: GLOBAL_NEXT_EVENT_TIME,
             eventFound: true,
             source: 'fallback'
         });
@@ -334,57 +231,71 @@ app.get('/api/next-event-time', async (req, res) => {
 });
 
 // =====================
-// REGISTRATION ENDPOINTS (Firebase Version)
+// REGISTRATION API
 // =====================
-app.get('/api/register', (req, res) => {
-    console.log('✅ GET request received at /api/register');
-    res.json({
-        message: 'This endpoint requires POST method',
-        example: 'POST /api/register with JSON body',
-        required_fields: ['name', 'email', 'contact_no', 'designation', 'organisation']
-    });
-});
-
 app.post('/api/register', async (req, res) => {
     console.log('📝 Registration request received:', req.body);
-
+    
     const { name, email, contact_no, designation, organisation } = req.body;
-
+    
+    // Validation
     if (!name || !email || !contact_no || !designation || !organisation) {
         return res.status(400).json({
-            error: 'All fields are required'
+            error: 'All fields are required: name, email, contact_no, designation, organisation'
         });
     }
-
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+    }
+    
     try {
+        // Check if email already registered
         const registrationsRef = db.collection('registrations');
-        const docRef = await registrationsRef.add({
+        const emailCheck = await registrationsRef.where('email', '==', email).get();
+        
+        if (!emailCheck.empty) {
+            return res.status(400).json({
+                error: 'Email already registered',
+                success: false
+            });
+        }
+        
+        // Save to Firestore
+        const registrationData = {
             name,
             email,
             contact_no,
             designation,
             organisation,
-            created_at: Timestamp.now()
-        });
-
+            created_at: FieldValue.serverTimestamp(),
+            ip_address: req.ip,
+            user_agent: req.get('User-Agent')
+        };
+        
+        const docRef = await registrationsRef.add(registrationData);
+        
         console.log(`✅ Registration saved to Firestore. ID: ${docRef.id}`);
-
+        
         res.json({
             success: true,
-            message: 'Registration saved successfully',
-            id: docRef.id
+            message: 'Registration successful!',
+            id: docRef.id,
+            timestamp: new Date().toISOString()
         });
     } catch (error) {
-        console.error('❌ Firestore error:', error);
+        console.error('❌ Registration error:', error.message);
         res.status(500).json({
-            error: 'Failed to save registration',
-            details: error.message
+            error: 'Failed to save registration. Please try again.',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
 
 // =====================
-// ADMIN APIS (Firebase Version)
+// ADMIN APIS
 // =====================
 app.get('/api/admin/registrations', async (req, res) => {
     try {
@@ -396,249 +307,186 @@ app.get('/api/admin/registrations', async (req, res) => {
             const data = doc.data();
             registrations.push({
                 id: doc.id,
-                ...data,
-                created_at: data.created_at.toDate ? data.created_at.toDate().toISOString() : data.created_at
+                name: data.name || '',
+                email: data.email || '',
+                contact_no: data.contact_no || '',
+                designation: data.designation || '',
+                organisation: data.organisation || '',
+                created_at: data.created_at?.toDate ? data.created_at.toDate().toISOString() : new Date().toISOString()
             });
         });
         
-        res.json(registrations);
+        res.json({
+            success: true,
+            count: registrations.length,
+            data: registrations
+        });
     } catch (error) {
-        console.error('Admin error:', error);
-        res.status(500).json({ error: 'Firestore error' });
+        console.error('❌ Admin registrations error:', error.message);
+        res.status(500).json({
+            error: 'Failed to fetch registrations',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 
 app.get('/api/admin/export-excel', async (req, res) => {
     try {
-        // Get registrations from Firestore in ASCENDING order
-        const registrationsRef = db.collection('registrations');
-        const snapshot = await registrationsRef.orderBy('created_at', 'asc').get();
+        // Get registrations with fallback
+        let registrations = [];
         
-        const rows = [];
-        snapshot.forEach((doc, index) => {
-            const data = doc.data();
-            rows.push({
-                id: doc.id,
-                index: index + 1,
-                created_at: data.created_at.toDate ? data.created_at.toDate() : new Date(data.created_at),
-                name: data.name,
-                email: data.email,
-                contact_no: data.contact_no,
-                designation: data.designation,
-                organisation: data.organisation
+        try {
+            const registrationsRef = db.collection('registrations');
+            const snapshot = await registrationsRef.orderBy('created_at', 'asc').get();
+            
+            snapshot.forEach((doc, index) => {
+                const data = doc.data();
+                registrations.push({
+                    index: index + 1,
+                    id: doc.id,
+                    name: data.name || '',
+                    email: data.email || '',
+                    contact_no: data.contact_no || '',
+                    designation: data.designation || '',
+                    organisation: data.organisation || '',
+                    created_at: data.created_at?.toDate ? 
+                        data.created_at.toDate().toLocaleString() : 
+                        new Date().toLocaleString()
+                });
             });
-        });
-
-        if (rows.length === 0) {
-            return res.status(404).json({ error: 'No registrations found' });
+        } catch (firestoreError) {
+            console.error('❌ Firestore error in export:', firestoreError.message);
+            // Continue with empty array
         }
-
-        // Create workbook
+        
+        // If no registrations, return empty Excel
+        if (registrations.length === 0) {
+            console.log('📭 No registrations found for export');
+            registrations = [{
+                index: 1,
+                name: 'No registrations yet',
+                email: '',
+                contact_no: '',
+                designation: '',
+                organisation: '',
+                created_at: new Date().toLocaleString()
+            }];
+        }
+        
+        // Create Excel workbook
         const workbook = new ExcelJS.Workbook();
-
+        
         // Main sheet
         const worksheet = workbook.addWorksheet('JUNO Registrations');
-
-        // Define headers
-        const headerRow = worksheet.addRow([
-            'S.No',
-            'Timestamp',
-            'Name',
-            'Email',
-            'Contact No',
-            'Designation',
-            'Organisation'
-        ]);
-
+        
+        // Headers
+        const headers = ['S.No', 'Timestamp', 'Name', 'Email', 'Contact No', 'Designation', 'Organisation'];
+        worksheet.addRow(headers);
+        
         // Style header row
-        headerRow.font = {
-            bold: true,
-            color: { argb: 'FFFFFFFF' },
-            size: 12
-        };
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
         headerRow.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: 'FF520893' }
+            fgColor: { argb: '520893' }
         };
-        headerRow.alignment = {
-            vertical: 'middle',
-            horizontal: 'center'
-        };
-        headerRow.height = 25;
-
-        // Add border to header cells
-        headerRow.eachCell((cell) => {
-            cell.border = {
-                top: { style: 'thin' },
-                left: { style: 'thin' },
-                bottom: { style: 'thin' },
-                right: { style: 'thin' }
-            };
-        });
-
-        // Add data rows in ASCENDING order (oldest first)
-        rows.forEach((row, index) => {
-            const dataRow = worksheet.addRow([
-                index + 1,  // S.No
-                row.created_at.toLocaleString(),  // Timestamp
-                row.name,  // Name
-                row.email,  // Email
-                row.contact_no,  // Contact No
-                row.designation,  // Designation
-                row.organisation   // Organisation
+        headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+        
+        // Add data
+        registrations.forEach(reg => {
+            worksheet.addRow([
+                reg.index,
+                reg.created_at,
+                reg.name,
+                reg.email,
+                reg.contact_no,
+                reg.designation,
+                reg.organisation
             ]);
-
-            // Alternate row colors
-            if (index % 2 === 0) {
-                dataRow.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFF2F2F2' }
-                };
-            }
-
-            // Add borders to all cells
-            dataRow.eachCell((cell) => {
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-            });
-
-            // Center align S.No column
-            const snoCell = dataRow.getCell(1);
-            snoCell.alignment = { horizontal: 'center' };
         });
-
-        // Set column widths
-        worksheet.columns = [
-            { width: 8 },   // S.No
-            { width: 22 },  // Timestamp
-            { width: 20 },  // Name
-            { width: 30 },  // Email
-            { width: 15 },  // Contact No
-            { width: 25 },  // Designation
-            { width: 35 }   // Organisation
-        ];
-
-        // Freeze header row (row 1)
-        worksheet.views = [
-            { state: 'frozen', xSplit: 0, ySplit: 1 }
-        ];
-
-        // Info sheet
-        const infoSheet = workbook.addWorksheet('Report Info');
-
-        // Title
-        infoSheet.mergeCells('A1:B1');
-        const titleCell = infoSheet.getCell('A1');
-        titleCell.value = 'JUNO Event Registrations';
-        titleCell.font = {
-            bold: true,
-            size: 16,
-            color: { argb: 'FF520893' }
-        };
-        titleCell.alignment = { horizontal: 'center' };
-
-        // Details
-        infoSheet.addRow([]);
-        infoSheet.addRow(['Report Generated:', new Date().toLocaleString()]);
-        infoSheet.addRow(['Total Registrations:', rows.length]);
-        infoSheet.addRow([]);
-        infoSheet.addRow(['Contact:', 'contact@juno.com']);
-        infoSheet.addRow(['Website:', 'https://juno.com']);
-
-        // Set column widths for info sheet
-        infoSheet.getColumn(1).width = 25;
-        infoSheet.getColumn(2).width = 30;
-
+        
+        // Auto-fit columns
+        worksheet.columns.forEach(column => {
+            let maxLength = 0;
+            column.eachCell({ includeEmpty: true }, cell => {
+                const cellLength = cell.value ? cell.value.toString().length : 0;
+                if (cellLength > maxLength) {
+                    maxLength = cellLength;
+                }
+            });
+            column.width = Math.min(maxLength + 2, 50);
+        });
+        
         // Set response headers
-        const fileName = `JUNO_Registrations_${new Date().toISOString().split('T')[0]}.xlsx`;
-        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        const fileName = `juno_registrations_${new Date().toISOString().split('T')[0]}.xlsx`;
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-
-        // Write to response
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        
+        // Send file
         await workbook.xlsx.write(res);
-
-        console.log(`✅ Excel exported from Firestore: ${rows.length} records`);
-
+        
+        console.log(`✅ Excel exported successfully: ${registrations.length} records`);
+        
     } catch (error) {
-        console.error('Excel export error:', error);
+        console.error('❌ Excel export error:', error.message);
         res.status(500).json({
-            error: 'Failed to export Excel',
-            details: error.message
+            error: 'Failed to generate Excel file',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
 
-app.delete('/api/admin/clear-registrations', async (req, res) => {
+// =====================
+// ADD SAMPLE DATA (Optional - for testing)
+// =====================
+app.post('/api/admin/seed-events', async (req, res) => {
     try {
-        // Delete all registrations from Firestore
-        const registrationsRef = db.collection('registrations');
-        const snapshot = await registrationsRef.get();
+        const sampleEvents = [
+            {
+                title: 'Moon Lamp Workshop',
+                description: 'Create your own moon texture lamp',
+                image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-1_ctoxli.jpg',
+                event_date: new Date('2026-01-20T18:00:00Z'),
+                location: 'Karachi',
+                price: 'Free',
+                capacity: 20
+            },
+            {
+                title: 'Chaye Crypto Meetup',
+                description: 'Discuss crypto over chai',
+                image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-2_bfm5ik.jpg',
+                event_date: new Date('2026-02-15T16:00:00Z'),
+                location: 'Lahore',
+                price: 'Free',
+                capacity: 30
+            }
+        ];
         
         const batch = db.batch();
-        snapshot.forEach(doc => {
-            batch.delete(doc.ref);
+        const eventsRef = db.collection('events');
+        
+        sampleEvents.forEach(event => {
+            const docRef = eventsRef.doc();
+            batch.set(docRef, {
+                ...event,
+                created_at: FieldValue.serverTimestamp()
+            });
         });
         
         await batch.commit();
         
         res.json({
             success: true,
-            message: 'All registrations cleared from Firestore'
+            message: 'Sample events added successfully',
+            count: sampleEvents.length
         });
     } catch (error) {
-        console.error('Clear error:', error);
-        res.status(500).json({ error: 'Failed to clear registrations' });
-    }
-});
-
-// =====================
-// ADD SAMPLE DATA TO FIRESTORE
-// =====================
-app.post('/api/sample-events', async (req, res) => {
-    try {
-        const sampleEvents = [
-            {
-                title: 'Moon Lamp Workshop',
-                description: 'Create your own moon texture',
-                image_url: 'https://picsum.photos/seed/moon/600/400',
-                event_date: Timestamp.fromDate(new Date('2024-03-15T18:00:00')),
-                city: 'Karachi'
-            },
-            {
-                title: 'Chaye Crypto Meetup',
-                description: 'Crypto discussion over tea',
-                image_url: 'https://picsum.photos/seed/crypto/600/400',
-                event_date: Timestamp.fromDate(new Date('2024-02-20T16:00:00')),
-                city: 'Lahore'
-            },
-            {
-                title: 'Saree Espresso Party',
-                description: 'Traditional meetup',
-                image_url: 'https://picsum.photos/seed/saree/600/400',
-                event_date: Timestamp.fromDate(new Date('2024-01-10T14:00:00')),
-                city: 'Islamabad'
-            }
-        ];
-
-        const batch = db.batch();
-        const eventsRef = db.collection('events');
-        
-        sampleEvents.forEach(event => {
-            const docRef = eventsRef.doc();
-            batch.set(docRef, event);
+        console.error('❌ Seed events error:', error);
+        res.status(500).json({
+            error: 'Failed to seed events',
+            details: error.message
         });
-        
-        await batch.commit();
-
-        res.json({ success: true, message: 'Sample events added to Firestore' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
     }
 });
 
@@ -646,17 +494,17 @@ app.post('/api/sample-events', async (req, res) => {
 // ERROR HANDLING
 // =====================
 app.use((err, req, res, next) => {
-    console.error('Server error:', err);
+    console.error('🔥 Server Error:', err);
     res.status(500).json({
-        error: 'Internal server error',
-        message: err.message
+        error: 'Internal Server Error',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
     });
 });
 
-// 404 HANDLER
+// 404 Handler
 app.use((req, res) => {
     res.status(404).json({
-        error: 'Route not found',
+        error: 'Endpoint not found',
         path: req.path,
         method: req.method
     });
@@ -665,15 +513,30 @@ app.use((req, res) => {
 // =====================
 // START SERVER
 // =====================
-app.listen(PORT, async () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Database: Firebase Firestore`);
-    console.log(`📈 Using exceljs for Excel exports`);
-
-    console.log('\n✅ Available Endpoints:');
-    console.log(`🔗 Health Check:    http://localhost:${PORT}/api/health`);
-    console.log(`📝 Registration:    POST http://localhost:${PORT}/api/register`);
-    console.log(`⏰ Countdown Time:  http://localhost:${PORT}/api/next-event-time`);
-    console.log(`🎪 Events:          http://localhost:${PORT}/api/events`);
-    console.log(`📊 Excel Export:    http://localhost:${PORT}/api/admin/export-excel`);
+app.listen(PORT, () => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const serverUrl = isProduction 
+        ? 'https://juno-website-backend.onrender.com' 
+        : `http://localhost:${PORT}`;
+    
+    console.log(`
+╔══════════════════════════════════════════════════════════╗
+║                   🚀 JUNO BACKEND SERVER                 ║
+╠══════════════════════════════════════════════════════════╣
+║ 📍 Environment: ${(process.env.NODE_ENV || 'development').padEnd(20)} ║
+║ 🔢 Port: ${String(PORT).padEnd(33)} ║
+║ 🗄️  Database: Firebase Firestore${' '.padEnd(19)} ║
+║ 🌐 Server URL: ${serverUrl.padEnd(26)} ║
+╚══════════════════════════════════════════════════════════╝
+    `);
+    
+    console.log('\n📡 API ENDPOINTS:');
+    console.log('├─ 🔗 Health Check'.padEnd(30) + `${serverUrl}/api/health`);
+    console.log('├─ 🎪 Events'.padEnd(30) + `${serverUrl}/api/events`);
+    console.log('├─ ⏰ Countdown Timer'.padEnd(30) + `${serverUrl}/api/next-event-time`);
+    console.log('├─ 📝 Registration (POST)'.padEnd(30) + `${serverUrl}/api/register`);
+    console.log('├─ 📊 Admin Registrations'.padEnd(30) + `${serverUrl}/api/admin/registrations`);
+    console.log('└─ 📈 Excel Export'.padEnd(30) + `${serverUrl}/api/admin/export-excel`);
+    
+    console.log('\n⚡ STATUS: Server is running and ready!');
 });
