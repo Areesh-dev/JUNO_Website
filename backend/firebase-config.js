@@ -11,3 +11,4 @@ export const serviceAccount = {
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40juno-backend-107fc.iam.gserviceaccount.com",
   "universe_domain": "googleapis.com"
 }
+
