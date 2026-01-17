@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 export const serviceAccount = {
   "type": "service_account",
   "project_id": "juno-backend-107fc",
