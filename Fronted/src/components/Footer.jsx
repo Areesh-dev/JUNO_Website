@@ -20,9 +20,7 @@ const Footer = () => {
         <div className="grid md:grid-cols-3 gap-8 " >
           {/* Brand Section */}
           <div className='w-full m-auto'>
-            <Link to="/" className="flex items-center space-x-2 mb-4">
-              <img className='h-8 w-18' src={logo} alt="JUNO Logo" />
-            </Link>
+           
             <p className="text-neutral-400">
               Discover amazing events in your city. Connect with people and build community.
             </p>
