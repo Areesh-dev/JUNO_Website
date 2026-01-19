@@ -1,3 +1,4 @@
+
 // src/pages/RegistrationForm.jsx - FIXED LOGIC
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'

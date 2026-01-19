@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import '../pages/Pages.css'
 
-const API_URL = 'http://localhost:3002/api/next-event-time' // ✅ Port 3002
+const API_URL = 'http://localhost:10000/api/next-event-time' // ✅ Port 3002
 
 export default function NextEventCountdown() {
   const [timeLeft, setTimeLeft] = useState({
@@ -14,6 +14,7 @@ export default function NextEventCountdown() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [eventData, setEventData] = useState(null)
+  const [timerExpired, setTimerExpired] = useState(false)
 
   useEffect(() => {
     let interval
@@ -22,11 +23,11 @@ export default function NextEventCountdown() {
       try {
         console.log('🔄 Fetching from:', API_URL)
         const res = await fetch(API_URL)
-        
+
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`)
         }
-        
+
         const data = await res.json()
         console.log('✅ Countdown data received:', data)
         setEventData(data)
@@ -34,20 +35,21 @@ export default function NextEventCountdown() {
         // Handle both response formats
         const eventTimeString = data.nextEventTime || data.eventStartTime
         console.log('⏰ Event time string:', eventTimeString)
-        
+
         if (!eventTimeString) {
           throw new Error('No event time found in response')
         }
 
-        const eventTime = new Date(eventTimeString).getTime()
+        const eventTime = new Date(eventTimeString || data.eventStartTime).getTime()
 
         const updateTimer = () => {
-          const now = Date.now()
-          const diff = eventTime - now
+          
+          const diff = eventTime - Date.now()
+          
 
           if (diff <= 0) {
             clearInterval(interval)
-            setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+            setTimerExpired(true)
             return
           }
 

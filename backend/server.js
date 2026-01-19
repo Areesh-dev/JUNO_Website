@@ -1,35 +1,198 @@
-// server.js - COMPLETE WORKING VERSION (FIXED)
+// server.js - COMPLETE MONGODB ATLAS VERSION FOR JUNO WEBSITE
 import express, { json } from 'express';
 import cors from 'cors';
 import ExcelJS from 'exceljs';
-import admin from 'firebase-admin';
 import dotenv from 'dotenv';
-import { FieldValue } from 'firebase-admin/firestore'; // ADD THIS IMPORT
-import { serviceAccount } from './firebase-config.js';
+import { MongoClient, ServerApiVersion } from 'mongodb';
 
-
-// Load environment variables FIRST
+// Load environment variables
 dotenv.config();
-
-try {
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
-  }
-  db = admin.firestore();
-} catch (error) {
-  console.error("Firebase Error:", error);
-  db = null;
-}
-
-
-
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// ✅ CORS Configuration
+// =====================
+// GLOBAL CONSTANTS
+// =====================
+const GLOBAL_NEXT_EVENT_TIME = '2026-01-29T01:30:00Z';
+
+// =====================
+// STATIC DATA (FALLBACK)
+// =====================
+const STATIC_EVENTS = [
+
+    {
+        id: 17,
+        title: 'Microsoft Community Event',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768826840/WhatsApp_Image_2026-01-19_at_10.32.16_AM_ytenrj.jpg',
+        is_past: false
+    }, {
+        id: 1,
+        title: 'Moon Lamp Workshop',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-1_ctoxli.jpg',
+        is_past: true
+    },
+    {
+        id: 2,
+        title: 'Chaye Crypto Meetup',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-2_bfm5ik.jpg',
+        is_past: true
+    },
+    {
+        id: 3,
+        title: 'Cushion Making Workshop',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875241/event-3_mzr6wq.jpg',
+        is_past: true
+    },
+    {
+        id: 4,
+        title: 'Community Meetup',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875240/event-4_xhsd71.jpg',
+        is_past: true
+    },
+    {
+        id: 5,
+        title: 'Ceramic Tary Painting Workshop',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204023/1_20_hyqmok.jpg',
+        is_past: true
+    },
+    {
+        id: 6,
+        title: 'Watch party snacks and drinks',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204023/1_31_wddr9w.jpg',
+        is_past: true
+    },
+    {
+        id: 7,
+        title: 'Play on canvas and clay',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204023/1_19_e5ocx0.jpg',
+        is_past: true
+    },
+    {
+        id: 8,
+        title: 'Clay Workshop',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_30_hlskpm.jpg',
+        is_past: true
+    },
+    {
+        id: 9,
+        title: 'Block Paint Magic',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_22_ntjrgg.jpg',
+        is_past: true
+    },
+    {
+        id: 10,
+        title: 'Block Painting',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204021/1_21_kkfawa.jpg',
+        is_past: true
+    },
+    {
+        id: 11,
+        title: 'CLay & Create',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_16_mq1eft.jpg',
+        is_past: true
+    },
+    {
+        id: 12,
+        title: 'Block Paint Workshop',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_13_z9ra9x.jpg',
+        is_past: true
+    },
+    {
+        id: 13,
+        title: 'Sip & Paint',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_15_mdpe6i.jpg',
+        is_past: true
+    },
+    {
+        id: 14,
+        title: 'Neon Painting Party',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204022/1_14_a7srbn.jpg',
+        is_past: true
+    },
+    {
+        id: 15,
+        title: 'Blind Date With A Book',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204021/1_11_pnsgew.jpg',
+        is_past: true
+    },
+    {
+        id: 16,
+        title: 'Latte Candle Workshop',
+        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204021/1_12_hsswh9.jpg',
+        is_past: true
+    }
+];
+
+
+// =====================
+// MONGODB CONNECTION
+// =====================
+const mongoURI = process.env.MONGODB_URI || "mongodb+srv://rashidmareesh:%3CTiger%21%3E@juno-cluster.chzd9fl.mongodb.net/?appName=juno-cluster";
+
+let db = null;
+let client = null;
+let memoryRegistrations = []; // Memory fallback
+
+async function connectDB() {
+    try {
+        console.log('🔗 Connecting to MongoDB Atlas...');
+
+        client = new MongoClient(mongoURI, {
+            serverApi: {
+                version: ServerApiVersion.v1,
+                strict: true,
+                deprecationErrors: true,
+            }
+        });
+
+        await client.connect();
+        db = client.db('juno_database');
+
+        // Create collections if they don't exist
+        await db.collection('registrations').createIndex({ email: 1 }, { unique: true });
+        await db.collection('events').createIndex({ event_date: -1 });
+
+        console.log('✅ MongoDB Atlas Connected!');
+        console.log('📍 Region: Singapore (ap-southeast-1)');
+        console.log('   Estimated latency to Karachi: 80-120ms');
+
+        // Insert sample events if collection is empty
+        const eventsCount = await db.collection('events').countDocuments();
+        if (eventsCount === 0) {
+            console.log('📝 Inserting sample events...');
+            await db.collection('events').insertMany([
+                {
+                    title: 'Moon Lamp Workshop',
+                    description: 'Create your own moon texture lamp',
+                    image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-1_ctoxli.jpg',
+                    event_date: '2026-01-20T18:00:00Z',
+                    location: 'Karachi',
+                    created_at: new Date()
+                },
+                {
+                    title: 'Chaye Crypto Meetup',
+                    description: 'Discuss crypto over chai',
+                    image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-2_bfm5ik.jpg',
+                    event_date: '2026-02-15T16:00:00Z',
+                    location: 'Karachi',
+                    created_at: new Date()
+                }
+            ]);
+        }
+
+    } catch (error) {
+        console.error('❌ MongoDB Connection Error:', error.message);
+        console.log('⚠️ Using memory storage as fallback');
+        db = null;
+    }
+}
+
+connectDB();
+
+// =====================
+// MIDDLEWARE
+// =====================
 app.use(cors({
     origin: [
         'http://localhost:3000',
@@ -54,97 +217,26 @@ app.use((req, res, next) => {
 });
 
 // =====================
-// GLOBAL CONSTANTS
-// =====================
-const GLOBAL_NEXT_EVENT_TIME = '2026-01-20T18:00:00Z';
-
-// =====================
-// STATIC DATA (FALLBACK)
-// =====================
-const STATIC_EVENTS = [
-    {
-        id: 1,
-        title: 'Moon Lamp Workshop',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-1_ctoxli.jpg',
-        description: 'Create your own moon texture lamp',
-        event_date: '2026-01-20T18:00:00Z',
-        is_past: true
-    },
-    {
-        id: 2,
-        title: 'Chaye Crypto Meetup',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875239/event-2_bfm5ik.jpg',
-        description: 'Discuss crypto over chai',
-        event_date: '2026-02-15T16:00:00Z',
-        is_past: true
-    },
-    {
-        id: 3,
-        title: 'Art & Sip Workshop',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1767875240/event-4_xhsd71.jpg',
-        description: 'Paint and sip with friends',
-        event_date: '2026-01-25T18:00:00Z',
-        is_past: true
-    },
-    {
-        id: 4,
-        title: 'Tech Community Meetup',
-        image_url: 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204023/1_19_e5ocx0.jpg',
-        description: 'Network with tech professionals',
-        event_date: '2026-02-15T16:00:00Z',
-        is_past: true
-    }
-];
-
-
-app.get('/api/debug/firebase', async (req, res) => {
-    try {
-        const info = {
-            firebase_initialized: !!db,
-            project_id: process.env.FIREBASE_PROJECT_ID || 'Not set',
-            client_email: process.env.FIREBASE_CLIENT_EMAIL || 'Not set',
-            private_key_set: process.env.FIREBASE_PRIVATE_KEY ? `Yes (${process.env.FIREBASE_PRIVATE_KEY.length} chars)` : 'No',
-            environment: process.env.NODE_ENV || 'development',
-            timestamp: new Date().toISOString()
-        };
-        
-        // Try to test Firestore if available
-        if (db) {
-            try {
-                const testDoc = await db.collection('test').doc('connection-test').get();
-                info.firestore_test = testDoc.exists ? 'Success' : 'Test document not found';
-                
-                // Count registrations
-                const regsRef = db.collection('registrations');
-                const snapshot = await regsRef.count().get();
-                info.registration_count = snapshot.data().count;
-            } catch (firestoreError) {
-                info.firestore_test = `Error: ${firestoreError.message}`;
-            }
-        }
-        
-        res.json(info);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// In-memory storage for registrations (fallback)
-let memoryRegistrations = [];
-
-// =====================
 // HEALTH CHECK
 // =====================
 app.get('/api/health', async (req, res) => {
     try {
+        const dbStatus = db ? 'Connected to MongoDB' : 'Disconnected (Using memory)';
+        let collections = [];
+
+        if (db) {
+            collections = await db.listCollections().toArray();
+        }
+
         res.json({
             status: 'OK',
             message: 'JUNO Backend is running',
             timestamp: new Date().toISOString(),
             port: PORT,
             environment: process.env.NODE_ENV || 'development',
-            firebase: db ? 'Connected' : 'Not connected',
-            events_count: STATIC_EVENTS.length
+            database: dbStatus,
+            collections: collections.map(c => c.name),
+            memory_registrations: memoryRegistrations.length
         });
     } catch (error) {
         res.status(500).json({
@@ -163,7 +255,7 @@ app.get('/', (req, res) => {
         message: 'JUNO Event Registration API',
         version: '1.0.0',
         status: 'Active',
-        firebase: db ? 'Connected' : 'Using fallback',
+        database: db ? 'MongoDB Atlas' : 'Memory (Fallback)',
         endpoints: {
             health: 'GET /api/health',
             events: 'GET /api/events',
@@ -172,6 +264,10 @@ app.get('/', (req, res) => {
             admin: {
                 registrations: 'GET /api/admin/registrations',
                 export: 'GET /api/admin/export-excel'
+            },
+            mongodb: {
+                status: 'GET /api/mongodb/status',
+                test: 'GET /api/mongodb/test'
             }
         }
     });
@@ -181,43 +277,8 @@ app.get('/', (req, res) => {
 // EVENTS API
 // =====================
 app.get('/api/events', async (req, res) => {
-    try {
-        // If Firebase is available, try to get events
-        if (db) {
-            console.log('📡 Fetching events from Firestore...');
-            const eventsRef = db.collection('events');
-            const snapshot = await eventsRef.orderBy('event_date', 'desc').get();
-            
-            if (!snapshot.empty) {
-                const events = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const eventDate = data.event_date?.toDate ? data.event_date.toDate() : new Date(data.event_date);
-                    events.push({
-                        id: doc.id,
-                        title: data.title || 'Untitled Event',
-                        description: data.description || '',
-                        image_url: data.image_url || '',
-                        event_date: data.event_date,
-                        location: data.location || '',
-                        is_past: eventDate < new Date()
-                    });
-                });
-                
-                console.log(`✅ Returning ${events.length} events from Firestore`);
-                return res.json(events);
-            }
-        }
-        
-        // Fallback to static events
-        console.log('📭 Using static events');
-        return res.json(STATIC_EVENTS);
-        
-    } catch (error) {
-        console.error('❌ Events error:', error.message);
-        console.log('🔄 Returning static events as fallback');
-        return res.json(STATIC_EVENTS);
-    }
+    console.log('📭 Returning static events');
+    return res.json(STATIC_EVENTS);
 });
 
 // =====================
@@ -225,32 +286,34 @@ app.get('/api/events', async (req, res) => {
 // =====================
 app.get('/api/next-event-time', async (req, res) => {
     try {
-        // If Firebase is available
+        // If MongoDB is available
         if (db) {
-            const eventsRef = db.collection('events');
-            const snapshot = await eventsRef
-                .where('event_date', '>=', new Date())
-                .orderBy('event_date', 'asc')
+            const nextEvent = await db.collection('events')
+                .find({ event_date: { $gte: new Date() } })
+                .sort({ event_date: 1 })
                 .limit(1)
-                .get();
-            
-            if (!snapshot.empty) {
-                let nextEvent = null;
-                snapshot.forEach(doc => {
-                    nextEvent = doc.data();
-                });
-                
+                .toArray();
+
+            if (nextEvent.length > 0) {
                 return res.json({
-                    nextEventTime: nextEvent.event_date,
-                    eventTitle: nextEvent.title,
+                    nextEventTime: nextEvent[0].event_date,
+                    eventTitle: nextEvent[0].title,
                     eventFound: true,
-                    source: 'firebase'
+                    source: 'mongodb'
                 });
             }
         }
-        
+
         // Fallback to static event time
-        const upcomingEvents = STATIC_EVENTS.filter(event => !event.is_past);
+        const now = new Date();
+
+        const upcomingEvents = STATIC_EVENTS
+            .filter(event => {
+                const eventTime = new Date(event.event_date);
+                return !event.is_past && eventTime > now;
+            })
+            .sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
+
         if (upcomingEvents.length > 0) {
             return res.json({
                 nextEventTime: upcomingEvents[0].event_date,
@@ -259,7 +322,7 @@ app.get('/api/next-event-time', async (req, res) => {
                 source: 'static'
             });
         }
-        
+
         // Default fallback
         return res.json({
             nextEventTime: GLOBAL_NEXT_EVENT_TIME,
@@ -267,7 +330,7 @@ app.get('/api/next-event-time', async (req, res) => {
             eventFound: true,
             source: 'fallback'
         });
-        
+
     } catch (error) {
         console.error('❌ Event time error:', error.message);
         return res.json({
@@ -283,26 +346,26 @@ app.get('/api/next-event-time', async (req, res) => {
 // =====================
 app.post('/api/register', async (req, res) => {
     console.log('📝 Registration request received:', req.body);
-    
+
     const { name, email, contact_no, designation, organisation } = req.body;
-    
+
     // Validation
     if (!name || !email || !contact_no || !designation || !organisation) {
         return res.status(400).json({
             error: 'All fields are required'
         });
     }
-    
+
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
         return res.status(400).json({ error: 'Invalid email format' });
     }
-    
-    // ✅ CHECK IF FIREBASE IS AVAILABLE
+
+    // ✅ CHECK IF MONGODB IS AVAILABLE
     if (!db) {
-        console.log('⚠️ Firebase not available, saving to memory');
-        
+        console.log('⚠️ MongoDB not available, saving to memory');
+
         // Check if email already exists in memory
         const emailExists = memoryRegistrations.some(reg => reg.email === email);
         if (emailExists) {
@@ -311,7 +374,7 @@ app.post('/api/register', async (req, res) => {
                 success: false
             });
         }
-        
+
         // Save to memory array
         const newReg = {
             id: memoryRegistrations.length + 1,
@@ -323,55 +386,63 @@ app.post('/api/register', async (req, res) => {
             created_at: new Date().toISOString()
         };
         memoryRegistrations.push(newReg);
-        
+
         return res.json({
             success: true,
-            message: 'Registration saved (offline mode)',
+            message: 'Registration saved (memory storage)',
             id: newReg.id,
-            timestamp: newReg.created_at
+            timestamp: newReg.created_at,
+            storage: 'memory'
         });
     }
-    
+
     try {
-        // Check if email already registered in Firebase
-        const registrationsRef = db.collection('registrations');
-        const emailCheck = await registrationsRef.where('email', '==', email).get();
-        
-        if (!emailCheck.empty) {
+        // Check if email already registered in MongoDB
+        const registrations = db.collection('registrations');
+        const existing = await registrations.findOne({ email });
+
+        if (existing) {
             return res.status(400).json({
                 error: 'Email already registered',
                 success: false
             });
         }
-        
-        // ✅ FIXED: Use FieldValue correctly
-        const registrationData = {
+
+        // Save to MongoDB
+        const result = await registrations.insertOne({
             name,
             email,
             contact_no,
             designation,
             organisation,
-            created_at: FieldValue.serverTimestamp(), // This is now properly imported
+            created_at: new Date(),
             timestamp: new Date().toISOString()
-        };
-        
-        const docRef = await registrationsRef.add(registrationData);
-        
-        console.log(`✅ Registration saved to Firestore. ID: ${docRef.id}`);
-        
+        });
+
+        console.log(`✅ Registration saved to MongoDB. ID: ${result.insertedId}`);
+
         res.json({
             success: true,
             message: 'Registration successful!',
-            id: docRef.id,
-            timestamp: new Date().toISOString()
+            id: result.insertedId,
+            timestamp: new Date().toISOString(),
+            storage: 'mongodb'
         });
+
     } catch (error) {
-        console.error('❌ Firestore error:', error.message);
-        console.error('Error details:', error);
-        
+        console.error('❌ MongoDB error:', error.message);
+
+        // Check if duplicate key error (MongoDB error code 11000)
+        if (error.code === 11000) {
+            return res.status(400).json({
+                error: 'Email already registered',
+                success: false
+            });
+        }
+
         // Fallback to memory storage
         console.log('🔄 Falling back to memory storage');
-        
+
         const newReg = {
             id: memoryRegistrations.length + 1,
             name,
@@ -382,13 +453,14 @@ app.post('/api/register', async (req, res) => {
             created_at: new Date().toISOString()
         };
         memoryRegistrations.push(newReg);
-        
+
         res.json({
             success: true,
-            message: 'Registration received (Firestore offline)',
+            message: 'Registration received (MongoDB offline)',
             id: newReg.id,
             timestamp: newReg.created_at,
-            warning: 'Saved locally only'
+            warning: 'Saved locally only',
+            storage: 'memory_fallback'
         });
     }
 });
@@ -399,42 +471,53 @@ app.post('/api/register', async (req, res) => {
 app.get('/api/admin/registrations', async (req, res) => {
     try {
         let registrations = [];
-        
-        // Try Firebase first
+
+        // Try MongoDB first
         if (db) {
             try {
-                const registrationsRef = db.collection('registrations');
-                const snapshot = await registrationsRef.orderBy('created_at', 'desc').get();
-                
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    registrations.push({
-                        id: doc.id,
-                        name: data.name || '',
-                        email: data.email || '',
-                        contact_no: data.contact_no || '',
-                        designation: data.designation || '',
-                        organisation: data.organisation || '',
-                        created_at: data.created_at?.toDate ? 
-                            data.created_at.toDate().toISOString() : 
-                            data.timestamp || new Date().toISOString()
-                    });
-                });
-            } catch (firestoreError) {
-                console.error('Firestore error:', firestoreError.message);
+                registrations = await db.collection('registrations')
+                    .find({})
+                    .sort({ created_at: -1 })
+                    .toArray();
+
+                // Format MongoDB data
+                registrations = registrations.map((reg, index) => ({
+                    index: index + 1,
+                    id: reg._id.toString(),
+                    name: reg.name || '',
+                    email: reg.email || '',
+                    contact_no: reg.contact_no || '',
+                    designation: reg.designation || '',
+                    organisation: reg.organisation || '',
+                    created_at: reg.created_at?.toISOString() || new Date().toISOString()
+                }));
+
+            } catch (mongodbError) {
+                console.error('MongoDB error:', mongodbError.message);
             }
         }
-        
-        // If no Firebase data, use memory
+
+        // If no MongoDB data, use memory
         if (registrations.length === 0) {
-            registrations = memoryRegistrations;
+            registrations = memoryRegistrations.map((reg, index) => ({
+                index: index + 1,
+                id: reg.id,
+                name: reg.name || '',
+                email: reg.email || '',
+                contact_no: reg.contact_no || '',
+                designation: reg.designation || '',
+                organisation: reg.organisation || '',
+                created_at: reg.created_at || new Date().toISOString()
+            }));
         }
-        
+
         res.json({
             success: true,
             count: registrations.length,
-            data: registrations
+            data: registrations,
+            source: db ? 'mongodb' : 'memory'
         });
+
     } catch (error) {
         console.error('❌ Admin registrations error:', error.message);
         res.status(500).json({
@@ -447,34 +530,32 @@ app.get('/api/admin/registrations', async (req, res) => {
 app.get('/api/admin/export-excel', async (req, res) => {
     try {
         let registrations = [];
-        
-        // Try Firebase first
+
+        // Try MongoDB first
         if (db) {
             try {
-                const registrationsRef = db.collection('registrations');
-                const snapshot = await registrationsRef.orderBy('created_at', 'asc').get();
-                
-                snapshot.forEach((doc, index) => {
-                    const data = doc.data();
-                    registrations.push({
-                        index: index + 1,
-                        id: doc.id,
-                        name: data.name || '',
-                        email: data.email || '',
-                        contact_no: data.contact_no || '',
-                        designation: data.designation || '',
-                        organisation: data.organisation || '',
-                        created_at: data.created_at?.toDate ? 
-                            data.created_at.toDate().toLocaleString() : 
-                            data.timestamp || new Date().toLocaleString()
-                    });
-                });
-            } catch (firestoreError) {
-                console.error('Firestore export error:', firestoreError.message);
+                registrations = await db.collection('registrations')
+                    .find({})
+                    .sort({ created_at: 1 })
+                    .toArray();
+
+                registrations = registrations.map((reg, index) => ({
+                    index: index + 1,
+                    id: reg._id.toString(),
+                    name: reg.name || '',
+                    email: reg.email || '',
+                    contact_no: reg.contact_no || '',
+                    designation: reg.designation || '',
+                    organisation: reg.organisation || '',
+                    created_at: reg.created_at?.toLocaleString() || new Date().toLocaleString()
+                }));
+
+            } catch (mongodbError) {
+                console.error('MongoDB export error:', mongodbError.message);
             }
         }
-        
-        // If no Firebase data, use memory
+
+        // If no MongoDB data, use memory
         if (registrations.length === 0) {
             registrations = memoryRegistrations.map((reg, index) => ({
                 index: index + 1,
@@ -487,7 +568,7 @@ app.get('/api/admin/export-excel', async (req, res) => {
                 created_at: reg.created_at || new Date().toLocaleString()
             }));
         }
-        
+
         // If still no registrations
         if (registrations.length === 0) {
             console.log('📭 No registrations found for export');
@@ -501,15 +582,15 @@ app.get('/api/admin/export-excel', async (req, res) => {
                 created_at: new Date().toLocaleString()
             }];
         }
-        
+
         // Create Excel workbook
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('JUNO Registrations');
-        
+
         // Headers
         const headers = ['S.No', 'Timestamp', 'Name', 'Email', 'Contact No', 'Designation', 'Organisation'];
         worksheet.addRow(headers);
-        
+
         // Style header
         const headerRow = worksheet.getRow(1);
         headerRow.font = { bold: true, color: { argb: 'FFFFFF' } };
@@ -519,7 +600,7 @@ app.get('/api/admin/export-excel', async (req, res) => {
             fgColor: { argb: '520893' }
         };
         headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
-        
+
         // Add data
         registrations.forEach(reg => {
             worksheet.addRow([
@@ -532,7 +613,7 @@ app.get('/api/admin/export-excel', async (req, res) => {
                 reg.organisation
             ]);
         });
-        
+
         // Auto-fit columns
         worksheet.columns.forEach(column => {
             let maxLength = 0;
@@ -544,22 +625,113 @@ app.get('/api/admin/export-excel', async (req, res) => {
             });
             column.width = Math.min(maxLength + 2, 50);
         });
-        
+
         // Set response headers
         const fileName = `juno_registrations_${new Date().toISOString().split('T')[0]}.xlsx`;
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-        
+
         // Send file
         await workbook.xlsx.write(res);
-        
+
         console.log(`✅ Excel exported: ${registrations.length} records`);
-        
+
     } catch (error) {
         console.error('❌ Excel export error:', error.message);
         res.status(500).json({
             error: 'Failed to generate Excel file',
             details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+// =====================
+// MONGODB TEST ENDPOINTS
+// =====================
+app.get('/api/mongodb/status', async (req, res) => {
+    try {
+        if (!db) {
+            return res.json({
+                status: 'disconnected',
+                message: 'MongoDB not connected',
+                using_memory: true,
+                memory_registrations: memoryRegistrations.length,
+                recommendation: 'Check MONGODB_URI environment variable'
+            });
+        }
+
+        // Get database stats
+        const stats = await db.stats();
+        const collections = await db.listCollections().toArray();
+
+        res.json({
+            status: 'connected',
+            message: 'MongoDB Atlas is working!',
+            database: db.databaseName,
+            region: 'Singapore (ap-southeast-1)',
+            latency: '80-120ms to Pakistan',
+            collections: collections.map(c => c.name),
+            stats: {
+                documents: stats.objects,
+                dataSize: `${Math.round(stats.dataSize / 1024 / 1024)}MB`,
+                storageSize: `${Math.round(stats.storageSize / 1024 / 1024)}MB`,
+                freeStorage: `${Math.round((512 - stats.storageSize / 1024 / 1024))}MB remaining`
+            },
+            memory_fallback: {
+                enabled: memoryRegistrations.length > 0,
+                count: memoryRegistrations.length
+            }
+        });
+
+    } catch (error) {
+        res.json({
+            status: 'error',
+            message: error.message,
+            using_memory: true
+        });
+    }
+});
+
+app.get('/api/mongodb/test', async (req, res) => {
+    try {
+        if (!db) {
+            throw new Error('Database not connected');
+        }
+
+        const startTime = Date.now();
+
+        // Write test
+        const testCollection = db.collection('connection_tests');
+        const result = await testCollection.insertOne({
+            test: 'MongoDB connection test from Pakistan',
+            timestamp: new Date(),
+            server: 'juno-backend',
+            location: 'Karachi, Pakistan'
+        });
+
+        // Read test
+        const doc = await testCollection.findOne({ _id: result.insertedId });
+
+        const endTime = Date.now();
+        const latency = endTime - startTime;
+
+        res.json({
+            success: true,
+            message: 'MongoDB connection test successful!',
+            latency: `${latency}ms`,
+            performance: latency < 200 ? 'Excellent' : latency < 500 ? 'Good' : 'Slow',
+            document: {
+                ...doc,
+                _id: doc._id.toString()
+            },
+            recommendation: 'Singapore region is optimal for Pakistan'
+        });
+
+    } catch (error) {
+        res.json({
+            success: false,
+            error: error.message,
+            recommendation: 'Check MongoDB Atlas connection settings'
         });
     }
 });
@@ -589,30 +761,43 @@ app.use((req, res) => {
 // =====================
 app.listen(PORT, () => {
     const isProduction = process.env.NODE_ENV === 'production';
-    const serverUrl = isProduction 
-        ? 'https://juno-website-backend.onrender.com' 
+    const serverUrl = isProduction
+        ? 'https://juno-website-backend.onrender.com'
         : `http://localhost:${PORT}`;
-    
+
     console.log(`
 ╔══════════════════════════════════════════════════════════╗
 ║                   🚀 JUNO BACKEND SERVER                 ║
 ╠══════════════════════════════════════════════════════════╣
 ║ 📍 Environment: ${(process.env.NODE_ENV || 'development').padEnd(20)} ║
 ║ 🔢 Port: ${String(PORT).padEnd(33)} ║
-║ 🗄️  Database: ${db ? 'Firebase Firestore' : 'Memory (Fallback)'.padEnd(19)} ║
+║ 🗄️  Database: ${db ? 'MongoDB Atlas ✓' : 'Memory (Fallback)'.padEnd(19)} ║
 ║ 🌐 Server URL: ${serverUrl.padEnd(26)} ║
+║ 🇵🇰 Optimized for: Pakistan (Singapore Region) ║
 ║ 🔥 Events: ${STATIC_EVENTS.length} (${STATIC_EVENTS.filter(e => !e.is_past).length} upcoming) ║
 ╚══════════════════════════════════════════════════════════╝
     `);
-    
+
     console.log('\n📡 API ENDPOINTS:');
     console.log('├─ 🔗 Health Check'.padEnd(30) + `${serverUrl}/api/health`);
     console.log('├─ 🎪 Events'.padEnd(30) + `${serverUrl}/api/events`);
     console.log('├─ ⏰ Countdown Timer'.padEnd(30) + `${serverUrl}/api/next-event-time`);
-    console.log('├─ 📝 Registration (POST)'.padEnd(30) + `${serverUrl}/api/register`);
+    console.log('├─ 📝 Registration'.padEnd(30) + `${serverUrl}/api/register`);
     console.log('├─ 📊 Admin Registrations'.padEnd(30) + `${serverUrl}/api/admin/registrations`);
-    console.log('└─ 📈 Excel Export'.padEnd(30) + `${serverUrl}/api/admin/export-excel`);
-    
+    console.log('├─ 📈 Excel Export'.padEnd(30) + `${serverUrl}/api/admin/export-excel`);
+    console.log('├─ 🗄️  MongoDB Status'.padEnd(30) + `${serverUrl}/api/mongodb/status`);
+    console.log('└─ 🧪 MongoDB Test'.padEnd(30) + `${serverUrl}/api/mongodb/test`);
+
     console.log('\n⚡ STATUS: Server is running and ready!');
-    console.log(`ℹ️  Firebase: ${db ? 'Connected ✓' : 'Using fallback storage'}`);
+    console.log(`🇵🇰 Optimized for Pakistan users (Singapore region)`);
+    console.log(`💾 Memory registrations: ${memoryRegistrations.length}`);
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', async () => {
+    console.log('SIGTERM signal received: closing MongoDB connection');
+    if (client) {
+        await client.close();
+    }
+    process.exit(0);
 });

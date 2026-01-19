@@ -1,4 +1,4 @@
-
+// src/pages/Events.jsx - CORRECTED
 import { useState, useEffect } from 'react'
 import Lightbox from 'yet-another-react-lightbox'
 import 'yet-another-react-lightbox/styles.css'
@@ -7,39 +7,35 @@ import { Search, Filter } from 'lucide-react'
 import { getEvents } from '../services/api'
 import Loader from '../components/Loader'
 
-
-
 const Events = () => {
-  const { data: events = [], isLoading } = useQuery({
-    queryKey: ['events'],
-    queryFn: getEvents,
-  })
-
-  if (isLoading) {
-    return <Loader />
-  }
-
+  // ✅ CORRECT: All hooks inside component at top
   const [searchTerm, setSearchTerm] = useState('')
   const [filter, setFilter] = useState('all')
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
+  const { data: events = [], isLoading } = useQuery({
+    queryKey: ['events'],
+    queryFn: getEvents,
+  })
+
   // ✅ FIXED: CORRECT FILTER AND SEARCH LOGIC
   const filteredEvents = events.filter(event => {
-  if (!event) return false;
+    if (!event) return false;
 
-  // Flexible check: agar field missing hai tou use 'upcoming' tasawwur karein
-  const isPastEvent = event.is_past === true || event.is_past === 1;
+    // Flexible check: agar field missing hai tou use 'upcoming' tasawwur karein
+    const isPastEvent = event.is_past === true || event.is_past === 1;
 
-  if (filter === 'upcoming') return !isPastEvent;
-  if (filter === 'past') return isPastEvent;
-  return true; // 'all' ke liye sab dikhao
-}).filter(event => {
-  // Search logic
-  const searchLower = searchTerm.toLowerCase().trim();
-  return (event.title || '').toLowerCase().includes(searchLower) || 
-         (event.description || '').toLowerCase().includes(searchLower);
-});
+    if (filter === 'upcoming') return !isPastEvent;
+    if (filter === 'past') return isPastEvent;
+    return true; // 'all' ke liye sab dikhao
+  }).filter(event => {
+    // Search logic
+    const searchLower = searchTerm.toLowerCase().trim();
+    return (event.title || '').toLowerCase().includes(searchLower) || 
+           (event.description || '').toLowerCase().includes(searchLower);
+  });
+
   // ✅ FIXED: Create unique slides
   const slides = filteredEvents.map((event, index) => ({
     src: event.image_url || `https://picsum.photos/seed/${event.id}_${index}/1200/800`,
@@ -62,6 +58,10 @@ const Events = () => {
   const clearFilters = () => {
     setSearchTerm('')
     setFilter('all')
+  }
+
+  if (isLoading) {
+    return <Loader />
   }
 
   return (

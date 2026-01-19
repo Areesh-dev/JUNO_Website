@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { getEvents } from '../services/api'
 
-const UpcomingEventImage = 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768204021/1_4_caup7g.jpg';
+const UpcomingEventImage = 'https://res.cloudinary.com/dldcsklkm/image/upload/v1768826840/WhatsApp_Image_2026-01-19_at_10.32.16_AM_ytenrj.jpg';
 const Home = () => {
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['events'],
@@ -55,7 +55,7 @@ const Home = () => {
 
             {/* Main Heading */}
             <h1 className="font-['Rowdies'] text-black leading-tight mb-6 sm:mb-8 md:mb-10
-        text-5xl  /* Mobile: 36px */
+        text-6xl  /* Mobile: 36px */
         sm:text-7xl /* Small: 48px */
         md:text-6xl /* Medium: 60px */
         lg:text-7xl /* Large: 72px */
@@ -110,7 +110,7 @@ const Home = () => {
               src={CommunityImage}
               alt="Community Event"
               className="
-          w-[70%]
+          w-[80%]
           max-w-[260px] sm:max-w-sm md:max-w-md lg:max-w-lg
           shadow-[6px_6px_0px_2px_#FEC732]
           sm:shadow-[10px_10px_0px_3px_#FEC732]
@@ -155,9 +155,9 @@ const Home = () => {
           <div className="flex-1 flex justify-center md:justify-start">
             <img
               src={UpcomingEventImage}
-              alt="Community Event"
+              alt="Upcoming Event"
               className="
-          w-[70%]
+          w-[80%]
           max-w-[260px] sm:max-w-sm md:max-w-md lg:max-w-lg
           shadow-[6px_6px_0px_2px_#520893]
           sm:shadow-[10px_10px_0px_3px_#520893]
@@ -176,7 +176,13 @@ const Home = () => {
   max-w-sm sm:max-w-md md:max-w-[380px] lg:max-w-xl
   mx-auto md:mx-0
 ">
-              What If Making Friends Was Easy explores the idea behind JUNO — a platform built to make real connections simple again. In a time where social apps feel crowded yet isolating, JUNO focuses on bringing people together through real-world events, shared interests, and meaningful experiences. Instead of endless scrolling or awkward introductions, JUNO helps you discover what’s happening in your city, join events that match your vibe, and meet people naturally — the way friendships are meant to form. This post highlights how small moments at the right events can turn strangers into friends, and how JUNO is changing the way communities connect.
+              JUNO is collaborating with the student community to build more than just an event — we’re creating a space where ideas collide, skills connect, and like-minded students come together with a shared purpose.
+
+This collaboration is focused on empowering students who are curious, driven, and eager to grow in the world of technology, AI, and innovation. From meaningful conversations to genuine networking, it’s about stepping beyond classrooms and textbooks to form connections that actually matter.
+
+At Season of AI, students won’t just attend a session — they’ll become part of a community that values learning, collaboration, and growth. Whether you’re exploring AI, building skills, or looking to connect with people who think like you, this is where those connections begin.
+
+Because real opportunities aren’t found randomly — they’re built when the right people come together.  
             </p>
             <button onClick={() => navigate('/registration')} className='py-2 px-3 bg-[#FEC732] mt-5 rounded-sm font-semibold text-[#520893] '>
               Register Now
