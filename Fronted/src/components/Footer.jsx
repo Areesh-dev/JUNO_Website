@@ -11,8 +11,7 @@ const Footer = () => {
   ]
 
   const socialLinks = [
-    { icon: Facebook, href: 'https://www.instagram.com/letsjuno_/' },
-    { icon: Instagram, href: '#' }
+    { icon: Instagram, href: 'https://www.instagram.com/letsjuno_/' }
   ]
 
   return (
