@@ -7,7 +7,7 @@ const Footer = () => {
   const navLinks = [
     { name: 'Home', path: '/' },
     { name: 'Events', path: '/events' },
-    { name: 'Register Now', path: '/registration' },
+    { name: 'Register For Season Of AI', path: '/registration' },
   ]
 
   const socialLinks = [
