@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import '../pages/Pages.css'
 
-const API_URL = 'http://localhost:10000/api/next-event-time' // ✅ Port 3002
+const API_URL = 'https://juno-website-backend.onrender.com/api/next-event-time' // ✅ Port 3002
 
 export default function NextEventCountdown() {
   const [timeLeft, setTimeLeft] = useState({
