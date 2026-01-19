@@ -59,7 +59,7 @@ const RegistrationForm = () => {
       reset()
 
       // Hide success after 3 seconds
-      setTimeout(() => setIsSuccess(false), 3000)
+      setTimeout(() => setIsSuccess(false), 20000)
 
     } catch (error) {
       console.error('❌ Registration error:', error)
@@ -87,7 +87,7 @@ const RegistrationForm = () => {
           <div className="flex items-center">
             <AlertCircle className="h-6 w-6 text-red-600 mr-3" />
             <div>
-              <h3 className="font-semibold text-red-800">Error</h3>
+              <h3 className="font-semibold text-red-800">Oh ho</h3>
               <p className="text-red-700">{errorMessage}</p>
             </div>
           </div>
