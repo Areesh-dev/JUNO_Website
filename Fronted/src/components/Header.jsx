@@ -48,7 +48,7 @@ const Header = () => {
                                 }`
                             }
                         >
-                            REGISTER FOR EVENT
+                            REGISTER FOR SEASON OF AI
                         </NavLink>
                     </nav>
 
@@ -82,7 +82,7 @@ const Header = () => {
                                 onClick={() => setIsMenuOpen(false)}
                                 className="px-4 py-2 rounded-lg bg-primary-purple text-white font-semibold w-fit"
                             >
-                                REGISTER FOR EVENT
+                                REGISTER FOR SEASON OF AI
                             </NavLink>
                         </nav>
                     </div>
